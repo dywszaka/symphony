@@ -1,6 +1,6 @@
 # Symphony Phoenix Phase 1 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Build the Phase 1 Core OTP MVP for a new Elixir/OTP + Phoenix Symphony implementation in `phoenix/`.
 
@@ -36,7 +36,7 @@
 
 ## Preflight
 
-- [ ] **Step 1: Verify Elixir toolchain**
+- [x] **Step 1: Verify Elixir toolchain**
 
 Run:
 
@@ -60,7 +60,7 @@ Expected: both commands print versions. If either command is missing, stop imple
 - Create: `phoenix/test/test_helper.exs`
 - Create: `phoenix/test/support/conn_case.ex`
 
-- [ ] **Step 1: Create minimal project files**
+- [x] **Step 1: Create minimal project files**
 
 Create `phoenix/mix.exs`:
 
@@ -213,7 +213,7 @@ defmodule SymphonyWeb.ConnCase do
 end
 ```
 
-- [ ] **Step 2: Fetch dependencies**
+- [x] **Step 2: Fetch dependencies**
 
 Run:
 
@@ -224,7 +224,7 @@ mix deps.get
 
 Expected: dependencies resolve successfully.
 
-- [ ] **Step 3: Run baseline compile**
+- [x] **Step 3: Run baseline compile**
 
 Run:
 
@@ -241,7 +241,7 @@ Expected: compile fails because referenced modules such as `Symphony.Orchestrato
 - Create: `phoenix/test/symphony/workflow/loader_test.exs`
 - Create: `phoenix/lib/symphony/workflow/loader.ex`
 
-- [ ] **Step 1: Write failing loader tests**
+- [x] **Step 1: Write failing loader tests**
 
 Create `phoenix/test/symphony/workflow/loader_test.exs`:
 
@@ -302,7 +302,7 @@ defmodule Symphony.Workflow.LoaderTest do
 end
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run:
 
@@ -313,7 +313,7 @@ mix test test/symphony/workflow/loader_test.exs
 
 Expected: FAIL with `module Symphony.Workflow.Loader is not loaded`.
 
-- [ ] **Step 3: Implement loader**
+- [x] **Step 3: Implement loader**
 
 Create `phoenix/lib/symphony/workflow/loader.ex`:
 
@@ -383,7 +383,7 @@ defmodule Symphony.Workflow.Loader do
 end
 ```
 
-- [ ] **Step 4: Run loader tests to verify they pass**
+- [x] **Step 4: Run loader tests to verify they pass**
 
 Run:
 
@@ -400,7 +400,7 @@ Expected: PASS.
 - Create: `phoenix/test/symphony/config/settings_test.exs`
 - Create: `phoenix/lib/symphony/config/settings.ex`
 
-- [ ] **Step 1: Write failing config tests**
+- [x] **Step 1: Write failing config tests**
 
 Create `phoenix/test/symphony/config/settings_test.exs`:
 
@@ -489,7 +489,7 @@ defmodule Symphony.Config.SettingsTest do
 end
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run:
 
@@ -500,7 +500,7 @@ mix test test/symphony/config/settings_test.exs
 
 Expected: FAIL with `module Symphony.Config.Settings is not loaded`.
 
-- [ ] **Step 3: Implement settings**
+- [x] **Step 3: Implement settings**
 
 Create `phoenix/lib/symphony/config/settings.ex`:
 
@@ -674,7 +674,7 @@ defmodule Symphony.Config.Settings do
 end
 ```
 
-- [ ] **Step 4: Run config tests**
+- [x] **Step 4: Run config tests**
 
 Run:
 
@@ -693,7 +693,7 @@ Expected: PASS.
 - Create: `phoenix/lib/symphony/tracker/behaviour.ex`
 - Create: `phoenix/lib/symphony/tracker/memory.ex`
 
-- [ ] **Step 1: Write failing memory tracker tests**
+- [x] **Step 1: Write failing memory tracker tests**
 
 Create `phoenix/test/symphony/tracker/memory_test.exs`:
 
@@ -728,7 +728,7 @@ defmodule Symphony.Tracker.MemoryTest do
 end
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run:
 
@@ -739,7 +739,7 @@ mix test test/symphony/tracker/memory_test.exs
 
 Expected: FAIL with missing tracker modules.
 
-- [ ] **Step 3: Implement tracker modules**
+- [x] **Step 3: Implement tracker modules**
 
 Create `phoenix/lib/symphony/tracker/issue.ex`:
 
@@ -834,7 +834,7 @@ defmodule Symphony.Tracker.Memory do
 end
 ```
 
-- [ ] **Step 4: Run tracker tests**
+- [x] **Step 4: Run tracker tests**
 
 Run:
 
@@ -851,7 +851,7 @@ Expected: PASS.
 - Create: `phoenix/test/symphony/workspace_test.exs`
 - Create: `phoenix/lib/symphony/workspace.ex`
 
-- [ ] **Step 1: Write failing workspace tests**
+- [x] **Step 1: Write failing workspace tests**
 
 Create `phoenix/test/symphony/workspace_test.exs`:
 
@@ -884,7 +884,7 @@ defmodule Symphony.WorkspaceTest do
 end
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run:
 
@@ -895,7 +895,7 @@ mix test test/symphony/workspace_test.exs
 
 Expected: FAIL with `module Symphony.Workspace is not loaded`.
 
-- [ ] **Step 3: Implement workspace basics**
+- [x] **Step 3: Implement workspace basics**
 
 Create `phoenix/lib/symphony/workspace.ex`:
 
@@ -948,7 +948,7 @@ defmodule Symphony.Workspace do
 end
 ```
 
-- [ ] **Step 4: Run workspace tests**
+- [x] **Step 4: Run workspace tests**
 
 Run:
 
@@ -966,7 +966,7 @@ Expected: PASS.
 - Create: `phoenix/lib/symphony/orchestrator/state.ex`
 - Create: `phoenix/lib/symphony/orchestrator.ex`
 
-- [ ] **Step 1: Write failing orchestrator tests**
+- [x] **Step 1: Write failing orchestrator tests**
 
 Create `phoenix/test/symphony/orchestrator_test.exs`:
 
@@ -992,7 +992,7 @@ defmodule Symphony.OrchestratorTest do
 end
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run:
 
@@ -1003,7 +1003,7 @@ mix test test/symphony/orchestrator_test.exs
 
 Expected: FAIL with missing orchestrator modules.
 
-- [ ] **Step 3: Implement orchestrator state and GenServer**
+- [x] **Step 3: Implement orchestrator state and GenServer**
 
 Create `phoenix/lib/symphony/orchestrator/state.ex`:
 
@@ -1077,7 +1077,7 @@ defmodule Symphony.Orchestrator do
 end
 ```
 
-- [ ] **Step 4: Run orchestrator tests**
+- [x] **Step 4: Run orchestrator tests**
 
 Run:
 
@@ -1097,7 +1097,7 @@ Expected: PASS.
 - Create: `phoenix/lib/symphony_web/controllers/state_controller.ex`
 - Create: `phoenix/lib/symphony_web/controllers/error_json.ex`
 
-- [ ] **Step 1: Write failing controller tests**
+- [x] **Step 1: Write failing controller tests**
 
 Create `phoenix/test/symphony_web/health_controller_test.exs`:
 
@@ -1133,7 +1133,7 @@ defmodule SymphonyWeb.StateControllerTest do
 end
 ```
 
-- [ ] **Step 2: Run controller tests to verify they fail**
+- [x] **Step 2: Run controller tests to verify they fail**
 
 Run:
 
@@ -1144,7 +1144,7 @@ mix test test/symphony_web
 
 Expected: FAIL with missing controller modules.
 
-- [ ] **Step 3: Implement controllers**
+- [x] **Step 3: Implement controllers**
 
 Create `phoenix/lib/symphony_web/controllers/health_controller.ex`:
 
@@ -1193,7 +1193,7 @@ defmodule SymphonyWeb.ErrorJSON do
 end
 ```
 
-- [ ] **Step 4: Run controller tests**
+- [x] **Step 4: Run controller tests**
 
 Run:
 
@@ -1210,7 +1210,7 @@ Expected: PASS.
 - Modify: `task_plan.md`
 - Modify: `progress.md`
 
-- [ ] **Step 1: Run formatter**
+- [x] **Step 1: Run formatter**
 
 Run:
 
@@ -1221,7 +1221,7 @@ mix format
 
 Expected: command exits successfully.
 
-- [ ] **Step 2: Run full Phase 1 tests**
+- [x] **Step 2: Run full Phase 1 tests**
 
 Run:
 
@@ -1232,7 +1232,7 @@ mix test
 
 Expected: PASS.
 
-- [ ] **Step 3: Verify app boots enough for routes**
+- [x] **Step 3: Verify app boots enough for routes**
 
 Run:
 
@@ -1243,7 +1243,7 @@ MIX_ENV=test mix run --no-halt
 
 Expected: the app starts without crashing. Stop it manually after startup is observed.
 
-- [ ] **Step 4: Update tracking files**
+- [x] **Step 4: Update tracking files**
 
 Modify `task_plan.md` so Phase 0 is `complete` and Phase 1 is `complete` after tests pass. Modify `progress.md` with:
 
@@ -1253,7 +1253,7 @@ Modify `task_plan.md` so Phase 0 is `complete` and Phase 1 is `complete` after t
 - Created Phase 1 commit.
 ```
 
-- [ ] **Step 5: Commit Phase 1**
+- [x] **Step 5: Commit Phase 1**
 
 Run:
 

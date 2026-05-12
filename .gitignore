@@ -1,1 +1,4 @@
 .worktrees/
+.docker_mix/
+phoenix/_build/
+phoenix/deps/
