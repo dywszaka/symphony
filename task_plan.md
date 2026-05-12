@@ -14,7 +14,7 @@ Goal: Build a new Symphony implementation from `SPEC.md` using Elixir/OTP + Phoe
 
 | Phase | Status | Scope | Exit Criteria |
 | --- | --- | --- | --- |
-| 0. Design and scaffold plan | in_progress | Confirm architecture, directory name, and Phase 1 scope | Design document committed and approved by user |
+| 0. Design and scaffold plan | complete | Confirm architecture, directory name, and Phase 1 scope | Design document committed and approved by user |
 | 1. Core OTP MVP | pending | New Mix/Phoenix project, workflow loader, typed config, memory tracker, workspace basics, orchestrator skeleton, health/state API | Tests pass, app boots locally, git commit created |
 | 2. Scheduling semantics | pending | Poll loop, candidate sorting, claim/running/retry state, active/terminal reconciliation, backoff | Focused orchestration tests pass, git commit created |
 | 3. Linear integration | pending | Linear GraphQL tracker adapter, pagination, normalization, error mapping | Adapter unit tests pass with mocked HTTP, git commit created |
