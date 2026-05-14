@@ -16,6 +16,11 @@ defmodule Symphony.Tracker.Memory do
     :ok
   end
 
+  @spec reset() :: :ok
+  def reset do
+    put_issues([])
+  end
+
   @impl true
   def fetch_candidate_issues, do: {:ok, issues()}
 

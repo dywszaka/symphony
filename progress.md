@@ -18,3 +18,13 @@
 - Verified with containerized `mix format`.
 - Verified with containerized `mix test`: 16 tests, 0 failures.
 - Verified the app boots with `MIX_ENV=test mix run --no-halt` and shuts down cleanly on SIGTERM.
+
+## 2026-05-14
+
+- User requested Phase 2 development.
+- Created isolated worktree `/Users/zhaoanka/Develop/symphony/.worktrees/phase-2-scheduling` on branch `phase/phoenix-scheduling-semantics`.
+- Baseline verification in the worktree passed with containerized `mix test`: 16 tests, 0 failures.
+- Wrote Phase 2 design document and implementation plan.
+- Implemented Phase 2 scheduling semantics: candidate sorting, eligibility, dispatch, auto-poll, retry, and reconciliation.
+- Verified with containerized `mix format`.
+- Verified with containerized `mix test`: 28 tests, 0 failures.
