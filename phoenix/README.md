@@ -2,7 +2,7 @@
 
 This directory contains the new Elixir/OTP + Phoenix implementation of Symphony.
 
-Status: Phase 2 Scheduling Semantics.
+Status: Phase 3 Linear Integration.
 
 The implementation is intentionally separate from `../elixir/`. The existing Elixir implementation
 can be used as behavioral reference, but this project is developed from `../SPEC.md` as the source
@@ -13,6 +13,8 @@ of truth.
 - Workflow loading from `WORKFLOW.md`-style files.
 - Typed runtime settings with core defaults.
 - In-memory tracker for deterministic local tests.
+- Linear GraphQL tracker adapter with pagination, state refresh, blocker extraction, and
+  deterministic mocked tests.
 - Workspace key/path creation basics.
 - OTP orchestrator process with dispatch, claim, running, retry, reconciliation, and runtime
   snapshot support.
@@ -24,7 +26,6 @@ of truth.
 
 Not implemented yet:
 
-- Linear GraphQL adapter.
 - Codex app-server runner.
 - Workspace hooks.
 - LiveView dashboard.
@@ -188,9 +189,28 @@ curl http://127.0.0.1:4002/api/v1/state
 }
 ```
 
+## Linear Tracker Configuration
+
+Linear settings are parsed from workflow front matter. The adapter uses `LINEAR_API_KEY` when
+`tracker.api_key` is omitted.
+
+```yaml
+tracker:
+  kind: linear
+  endpoint: https://api.linear.app/graphql
+  project_slug: my-project
+  api_key: ${LINEAR_API_KEY}
+  active_states:
+    - Todo
+    - In Progress
+  terminal_states:
+    - Done
+    - Canceled
+```
+
 ## Development Notes
 
 - Keep core runtime code under `lib/symphony/`.
 - Keep Phoenix/web-only code under `lib/symphony_web/`.
-- Do not add Linear or Codex behavior until the relevant phase explicitly calls for it.
+- Do not add Codex behavior until the relevant phase explicitly calls for it.
 - Run `mix format` and `mix test` before committing changes.

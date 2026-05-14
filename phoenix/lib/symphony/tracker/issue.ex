@@ -22,8 +22,8 @@ defmodule Symphony.Tracker.Issue do
   def normalize(%__MODULE__{} = issue), do: %{issue | labels: normalize_labels(issue.labels)}
 
   def normalize(map) when is_map(map) do
-    map
-    |> struct(__MODULE__)
+    __MODULE__
+    |> struct(map)
     |> normalize()
   end
 

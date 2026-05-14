@@ -28,3 +28,17 @@
 - Implemented Phase 2 scheduling semantics: candidate sorting, eligibility, dispatch, auto-poll, retry, and reconciliation.
 - Verified with containerized `mix format`.
 - Verified with containerized `mix test`: 28 tests, 0 failures.
+
+## 2026-05-14
+
+- User asked to continue after Phase 2 and execute remaining spec tasks.
+- Merged Phase 2 into `main`, synced remote `origin/main`, and verified merged `main` with `mix test`: 28 tests, 0 failures.
+- Created Phase 3 worktree `/Users/zhaoanka/Develop/symphony/.worktrees/phase-3-linear` on branch `phase/phoenix-linear-integration`.
+- Baseline Phase 3 verification passed with `mix test`: 28 tests, 0 failures.
+- Wrote Phase 3 Linear integration design and implementation plan.
+- Implemented Linear GraphQL tracker adapter and minimal HTTP client.
+- Added mocked adapter tests for pagination, project/state filters, blocker normalization, state
+  refresh, and error mapping.
+- Updated Phoenix README status and Linear configuration notes.
+- Verified Phase 3 with containerized `mix format`.
+- Verified Phase 3 with containerized `mix test`: 32 tests, 0 failures.
