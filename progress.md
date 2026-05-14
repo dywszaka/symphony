@@ -55,3 +55,15 @@
 - Implemented Codex runner workspace/prompt/turn loop with fake app-server and tracker tests.
 - Verified Phase 4 with containerized `mix format`.
 - Verified Phase 4 with containerized `mix test`: 41 tests, 0 failures.
+
+## 2026-05-14
+
+- Merged Phase 4 into `main` and verified merged `main` with `mix test`: 41 tests, 0 failures.
+- Created Phase 5 worktree `/Users/zhaoanka/Develop/symphony/.worktrees/phase-5-workspace-hooks` on branch `codex/phoenix-workspace-hooks`.
+- Baseline Phase 5 verification passed with `mix test`: 41 tests, 0 failures.
+- Wrote Phase 5 workspace hooks and safety design and implementation plan.
+- Implemented workspace hook executor with cwd, exit-status, timeout, and no-op behavior.
+- Extended workspace creation/removal with `after_create` and `before_remove` semantics.
+- Integrated `before_run` and `after_run` into the Codex runner with workspace cwd safety checks.
+- Verified Phase 5 with containerized `mix format`.
+- Verified Phase 5 with containerized `mix test`: 51 tests, 0 failures.

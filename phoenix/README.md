@@ -2,7 +2,7 @@
 
 This directory contains the new Elixir/OTP + Phoenix implementation of Symphony.
 
-Status: Phase 4 Codex Runner.
+Status: Phase 5 Workspace Hooks.
 
 The implementation is intentionally separate from `../elixir/`. The existing Elixir implementation
 can be used as behavioral reference, but this project is developed from `../SPEC.md` as the source
@@ -17,6 +17,7 @@ of truth.
   deterministic mocked tests.
 - Strict prompt rendering for issue fields and retry attempts.
 - Codex app-server runner/client with deterministic fake-protocol tests.
+- Workspace lifecycle hooks with timeout and failure semantics.
 - Workspace key/path creation basics.
 - OTP orchestrator process with dispatch, claim, running, retry, reconciliation, and runtime
   snapshot support.
@@ -28,8 +29,8 @@ of truth.
 
 Not implemented yet:
 
-- Workspace hooks.
 - Dynamic workflow reload.
+- Startup terminal workspace cleanup.
 - Token/rate-limit aggregation.
 - LiveView dashboard.
 
@@ -226,6 +227,26 @@ Approval posture for this phase:
 - File-change approval requests are accepted for the session.
 - Unsupported dynamic tools return a structured tool failure.
 - User-input requests fail the current turn so runs do not stall indefinitely.
+
+## Workspace Hooks
+
+Supported hook fields in workflow front matter:
+
+```yaml
+hooks:
+  timeout_ms: 60000
+  after_create: |
+    echo "new workspace: $PWD"
+  before_run: |
+    echo "before Codex: $PWD"
+  after_run: |
+    echo "after Codex: $PWD"
+  before_remove: |
+    echo "removing workspace: $PWD"
+```
+
+`after_create` and `before_run` failures abort the current operation. `after_run` and
+`before_remove` failures are logged and ignored.
 
 ## Development Notes
 

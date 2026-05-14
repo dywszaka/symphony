@@ -10,6 +10,7 @@ defmodule Symphony.Runner.Codex do
   alias Symphony.Prompt.Template
   alias Symphony.Tracker.Issue
   alias Symphony.Workspace
+  alias Symphony.Workspace.Hooks
 
   @continuation_prompt """
   The previous Codex turn completed normally, but the tracker issue is still in an active state.
@@ -31,29 +32,41 @@ defmodule Symphony.Runner.Codex do
 
   @spec run_issue(Issue.t(), keyword()) :: :ok | {:error, term()}
   def run_issue(%Issue{} = issue, opts) when is_list(opts) do
-    settings = Keyword.fetch!(opts, :settings)
-    prompt_template = Keyword.get(opts, :prompt_template, "")
-    attempt = Keyword.get(opts, :attempt)
-    app_server = Keyword.get(opts, :app_server, AppServer)
-    tracker = Keyword.get(opts, :tracker, Symphony.Tracker.Memory)
-    on_message = Keyword.get(opts, :on_message, fn _message -> :ok end)
+    with :ok <- validate_issue_identifier(issue.identifier) do
+      settings = Keyword.fetch!(opts, :settings)
+      prompt_template = Keyword.get(opts, :prompt_template, "")
+      attempt = Keyword.get(opts, :attempt)
+      app_server = Keyword.get(opts, :app_server, AppServer)
+      tracker = Keyword.get(opts, :tracker, Symphony.Tracker.Memory)
+      on_message = Keyword.get(opts, :on_message, fn _message -> :ok end)
 
-    with {:ok, workspace} <- Workspace.create_for_issue(issue.identifier, settings.workspace.root),
-         {:ok, session} <- app_server.start_session(workspace.path, settings) do
-      try do
-        run_turns(
-          session,
-          issue,
-          prompt_template,
-          attempt,
-          settings,
-          app_server,
-          tracker,
-          on_message,
-          1
-        )
-      after
+      with {:ok, workspace} <-
+             Workspace.create_for_issue(issue.identifier, settings.workspace.root, settings.hooks),
+           :ok <- validate_workspace_cwd(workspace.path, settings.workspace.root),
+           :ok <-
+             Hooks.run(
+               :before_run,
+               Map.get(settings.hooks, :before_run),
+               workspace.path,
+               settings.hooks.timeout_ms
+             ),
+           {:ok, session} <- app_server.start_session(workspace.path, settings) do
+        result =
+          run_turns(
+            session,
+            issue,
+            prompt_template,
+            attempt,
+            settings,
+            app_server,
+            tracker,
+            on_message,
+            1
+          )
+
         app_server.stop_session(session)
+        run_after_run(settings, workspace.path)
+        result
       end
     end
   end
@@ -114,5 +127,37 @@ defmodule Symphony.Runner.Codex do
   defp continue?(issue, settings, turn_number) do
     turn_number < settings.agent.max_turns and
       Scheduling.active_state?(issue.state, settings.tracker.active_states)
+  end
+
+  defp run_after_run(settings, workspace_path) do
+    Hooks.run(
+      :after_run,
+      Map.get(settings.hooks, :after_run),
+      workspace_path,
+      settings.hooks.timeout_ms
+    )
+
+    :ok
+  end
+
+  defp validate_issue_identifier(identifier) when is_binary(identifier) do
+    if String.trim(identifier) == "",
+      do: {:error, {:invalid_issue_identifier, identifier}},
+      else: :ok
+  end
+
+  defp validate_issue_identifier(identifier),
+    do: {:error, {:invalid_issue_identifier, identifier}}
+
+  defp validate_workspace_cwd(workspace_path, root) do
+    root_path = Path.expand(root)
+    workspace_path = Path.expand(workspace_path)
+
+    if workspace_path != root_path and
+         String.starts_with?(workspace_path <> "/", root_path <> "/") do
+      :ok
+    else
+      {:error, {:unsafe_workspace_cwd, workspace_path, root_path}}
+    end
   end
 end

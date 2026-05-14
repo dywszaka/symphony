@@ -64,9 +64,58 @@ defmodule Symphony.Runner.CodexTest do
     refute_receive {:run_turn, _continuation_prompt, "MT-2"}, 20
   end
 
+  test "before_run hook failure aborts before app-server launch", %{root: root} do
+    issue = %Issue{id: "issue-3", identifier: "MT-3", title: "Blocked hook", state: "Todo"}
+
+    assert {:error, {:hook_failed, :before_run, 6, _output}} =
+             Codex.run_issue(issue,
+               settings: settings(root, max_turns: 1, hooks: %{before_run: "exit 6"}),
+               prompt_template: "Ticket {{ issue.identifier }}",
+               app_server: __MODULE__.FakeAppServer,
+               tracker: __MODULE__.FakeTracker
+             )
+
+    refute_received {:start_session, _workspace}
+  end
+
+  test "after_run hook is best effort", %{root: root} do
+    issue = %Issue{id: "issue-4", identifier: "MT-4", title: "After hook", state: "Todo"}
+    marker = Path.join([root, "MT-4", "after.txt"])
+
+    assert :ok =
+             Codex.run_issue(issue,
+               settings:
+                 settings(root,
+                   max_turns: 1,
+                   hooks: %{after_run: "echo after > #{shell_escape(marker)} && exit 5"}
+                 ),
+               prompt_template: "Ticket {{ issue.identifier }}",
+               app_server: __MODULE__.FakeAppServer,
+               tracker: __MODULE__.FakeTracker
+             )
+
+    assert String.trim(File.read!(marker)) == "after"
+    assert_received {:stop_session, "thread-1"}
+  end
+
+  test "rejects unsafe workspace cwd before app-server launch", %{root: root} do
+    issue = %Issue{id: "issue-5", identifier: nil, title: "Unsafe cwd", state: "Todo"}
+
+    assert {:error, {:invalid_issue_identifier, nil}} =
+             Codex.run_issue(issue,
+               settings: settings(root, max_turns: 1),
+               prompt_template: "Ticket",
+               app_server: __MODULE__.FakeAppServer,
+               tracker: __MODULE__.FakeTracker
+             )
+
+    refute_received {:start_session, _workspace}
+  end
+
   defp settings(root, opts) do
     %{
       workspace: %{root: root},
+      hooks: Map.merge(%{timeout_ms: 1_000}, Keyword.get(opts, :hooks, %{})),
       tracker: %{active_states: ["Todo", "In Progress"], terminal_states: ["Done"]},
       agent: %{max_turns: Keyword.fetch!(opts, :max_turns)},
       codex: %{command: "codex app-server"}
@@ -84,6 +133,8 @@ defmodule Symphony.Runner.CodexTest do
     File.mkdir_p!(path)
     path
   end
+
+  defp shell_escape(path), do: "'" <> String.replace(path, "'", "'\\''") <> "'"
 
   defmodule FakeAppServer do
     def start_session(workspace, _settings) do
