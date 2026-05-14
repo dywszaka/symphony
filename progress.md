@@ -42,3 +42,16 @@
 - Updated Phoenix README status and Linear configuration notes.
 - Verified Phase 3 with containerized `mix format`.
 - Verified Phase 3 with containerized `mix test`: 32 tests, 0 failures.
+
+## 2026-05-14
+
+- Merged Phase 3 into `main` and verified merged `main` with `mix test`: 32 tests, 0 failures.
+- Generated local Codex app-server JSON schema with `codex app-server generate-json-schema`.
+- Created Phase 4 worktree `/Users/zhaoanka/Develop/symphony/.worktrees/phase-4-codex-runner` on branch `codex/phoenix-codex-runner`.
+- Baseline Phase 4 verification passed with `mix test`: 32 tests, 0 failures.
+- Wrote Phase 4 Codex runner design and implementation plan.
+- Implemented strict prompt rendering for issue and attempt values.
+- Implemented Codex app-server stdio JSON-RPC client with fake-protocol tests.
+- Implemented Codex runner workspace/prompt/turn loop with fake app-server and tracker tests.
+- Verified Phase 4 with containerized `mix format`.
+- Verified Phase 4 with containerized `mix test`: 41 tests, 0 failures.

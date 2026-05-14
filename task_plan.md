@@ -18,7 +18,7 @@ Goal: Build a new Symphony implementation from `SPEC.md` using Elixir/OTP + Phoe
 | 1. Core OTP MVP | complete | New Mix/Phoenix project, workflow loader, typed config, memory tracker, workspace basics, orchestrator skeleton, health/state API | Tests pass, app boots locally, git commit created |
 | 2. Scheduling semantics | complete | Poll loop, candidate sorting, claim/running/retry state, active/terminal reconciliation, backoff | Focused orchestration tests pass, git commit created |
 | 3. Linear integration | complete | Linear GraphQL tracker adapter, pagination, normalization, error mapping | Adapter unit tests pass with mocked HTTP, git commit created |
-| 4. Codex agent runner | pending | Prompt rendering, Codex app-server subprocess client, turn lifecycle, runtime events | Protocol/client tests pass using fake app-server, git commit created |
+| 4. Codex agent runner | complete | Prompt rendering, Codex app-server subprocess client, turn lifecycle, runtime events | Protocol/client tests pass using fake app-server, git commit created |
 | 5. Workspace hooks and safety | pending | Path invariants, hook execution/timeout/failure semantics, terminal cleanup | Workspace tests pass, git commit created |
 | 6. Observability dashboard | pending | Structured state snapshot, Phoenix JSON API, optional LiveView dashboard, token/rate-limit accounting | API/UI tests pass, git commit created |
 | 7. End-to-end validation | pending | Memory tracker E2E, optional Linear/Codex live test harness, docs | Full local quality gate passes, git commit created |

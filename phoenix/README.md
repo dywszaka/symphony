@@ -2,7 +2,7 @@
 
 This directory contains the new Elixir/OTP + Phoenix implementation of Symphony.
 
-Status: Phase 3 Linear Integration.
+Status: Phase 4 Codex Runner.
 
 The implementation is intentionally separate from `../elixir/`. The existing Elixir implementation
 can be used as behavioral reference, but this project is developed from `../SPEC.md` as the source
@@ -15,6 +15,8 @@ of truth.
 - In-memory tracker for deterministic local tests.
 - Linear GraphQL tracker adapter with pagination, state refresh, blocker extraction, and
   deterministic mocked tests.
+- Strict prompt rendering for issue fields and retry attempts.
+- Codex app-server runner/client with deterministic fake-protocol tests.
 - Workspace key/path creation basics.
 - OTP orchestrator process with dispatch, claim, running, retry, reconciliation, and runtime
   snapshot support.
@@ -26,8 +28,9 @@ of truth.
 
 Not implemented yet:
 
-- Codex app-server runner.
 - Workspace hooks.
+- Dynamic workflow reload.
+- Token/rate-limit aggregation.
 - LiveView dashboard.
 
 ## Requirements
@@ -208,9 +211,25 @@ tracker:
     - Canceled
 ```
 
+## Codex Runner Policy
+
+The Phase 4 runner starts `codex app-server` with `bash -lc <codex.command>` from the per-issue
+workspace. It follows the current local app-server JSON-RPC protocol:
+
+- `initialize`
+- `thread/start`
+- `turn/start`
+
+Approval posture for this phase:
+
+- Command execution approval requests are accepted for the session.
+- File-change approval requests are accepted for the session.
+- Unsupported dynamic tools return a structured tool failure.
+- User-input requests fail the current turn so runs do not stall indefinitely.
+
 ## Development Notes
 
 - Keep core runtime code under `lib/symphony/`.
 - Keep Phoenix/web-only code under `lib/symphony_web/`.
-- Do not add Codex behavior until the relevant phase explicitly calls for it.
+- Do not add dynamic Codex tool extensions until the relevant phase explicitly calls for them.
 - Run `mix format` and `mix test` before committing changes.
