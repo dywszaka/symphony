@@ -5,12 +5,14 @@ defmodule Symphony.Application do
 
   @impl true
   def start(_type, _args) do
-    children = [
-      Symphony.Orchestrator,
-      SymphonyWeb.Endpoint
-    ]
+    with {:ok, orchestrator_opts} <- Symphony.Runtime.orchestrator_opts() do
+      children = [
+        {Symphony.Orchestrator, orchestrator_opts},
+        SymphonyWeb.Endpoint
+      ]
 
-    Supervisor.start_link(children, strategy: :one_for_one, name: Symphony.Supervisor)
+      Supervisor.start_link(children, strategy: :one_for_one, name: Symphony.Supervisor)
+    end
   end
 
   @impl true

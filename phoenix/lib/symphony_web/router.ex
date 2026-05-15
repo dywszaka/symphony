@@ -20,5 +20,6 @@ defmodule SymphonyWeb.Router do
 
     get("/health", HealthController, :show)
     get("/api/v1/state", StateController, :show)
+    post("/api/v1/refresh", RefreshController, :create)
   end
 end

@@ -30,10 +30,13 @@ of truth.
 - Phoenix JSON endpoints:
   - `GET /health`
   - `GET /api/v1/state`
+  - `POST /api/v1/refresh`
+- Runtime startup from `WORKFLOW_PATH` with Linear tracker, Codex runner, and automatic polling.
 
 Not implemented yet:
 
 - LiveView dashboard.
+- Dashboard task list.
 - Optional `linear_graphql` dynamic tool extension.
 
 ## Requirements
@@ -127,6 +130,59 @@ Then verify:
 ```bash
 curl http://127.0.0.1:4002/health
 curl http://127.0.0.1:4002/api/v1/state
+curl -X POST http://127.0.0.1:4002/api/v1/refresh
+```
+
+### Run Against Linear Issues
+
+Create a `WORKFLOW.md` with Linear tracker settings. Symphony treats matching Linear issues as
+tasks; it does not create issues itself.
+
+```yaml
+---
+tracker:
+  kind: linear
+  project_slug: your-linear-project-slug
+  api_key: $LINEAR_API_KEY
+  active_states:
+    - Todo
+    - In Progress
+  terminal_states:
+    - Done
+    - Canceled
+workspace:
+  root: tmp/symphony-workspaces
+polling:
+  interval_ms: 30000
+agent:
+  max_concurrent_agents: 2
+codex:
+  command: codex app-server
+---
+
+You are working on Linear issue {{ issue.identifier }}.
+
+Title: {{ issue.title }}
+
+Description:
+{{ issue.description }}
+```
+
+Start the service with the workflow path and Linear API key:
+
+```bash
+cd phoenix
+export LINEAR_API_KEY="lin_api_..."
+export WORKFLOW_PATH="$PWD/../WORKFLOW.md"
+mix run --no-start -e 'config = Application.get_env(:symphony, SymphonyWeb.Endpoint, []); Application.put_env(:symphony, SymphonyWeb.Endpoint, Keyword.merge(config, http: [ip: {127, 0, 0, 1}, port: 4002], server: true, secret_key_base: String.duplicate("a", 64))); Application.ensure_all_started(:symphony); Process.sleep(:infinity)'
+```
+
+When `WORKFLOW_PATH` is set, startup validates the workflow, configures
+`Symphony.Linear.Adapter`, starts the Codex runner, and enables automatic polling. To trigger a
+poll immediately:
+
+```bash
+curl -X POST http://127.0.0.1:4002/api/v1/refresh
 ```
 
 ## Docker Usage
@@ -165,6 +221,26 @@ Then, in another terminal:
 ```bash
 curl http://127.0.0.1:4002/health
 curl http://127.0.0.1:4002/api/v1/state
+curl -X POST http://127.0.0.1:4002/api/v1/refresh
+```
+
+Run the HTTP service against Linear through Docker:
+
+```bash
+mkdir -p .docker_mix
+export LINEAR_API_KEY="lin_api_..."
+export WORKFLOW_PATH="$PWD/WORKFLOW.md"
+docker run --rm \
+  -u "$(id -u):$(id -g)" \
+  -e HOME=/tmp \
+  -e LINEAR_API_KEY \
+  -e WORKFLOW_PATH=/app/WORKFLOW.md \
+  -p 4002:4002 \
+  -v "$PWD/.docker_mix":/tmp/.mix \
+  -v "$PWD":/app \
+  -w /app/phoenix \
+  elixir:1.19.5-otp-28-alpine \
+  sh -lc 'mix deps.get && mix run --no-start -e '\''config = Application.get_env(:symphony, SymphonyWeb.Endpoint, []); Application.put_env(:symphony, SymphonyWeb.Endpoint, Keyword.merge(config, http: [ip: {0, 0, 0, 0}, port: 4002], server: true, secret_key_base: String.duplicate("a", 64))); Application.ensure_all_started(:symphony); Process.sleep(:infinity)'\'''
 ```
 
 ## API Responses
@@ -192,6 +268,16 @@ curl http://127.0.0.1:4002/api/v1/state
     "seconds_running": 0
   },
   "codex_rate_limits": null
+}
+```
+
+`POST /api/v1/refresh`
+
+```json
+{
+  "queued": true,
+  "reconciled": true,
+  "dispatched": true
 }
 ```
 
