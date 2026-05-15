@@ -2,7 +2,7 @@
 
 This directory contains the new Elixir/OTP + Phoenix implementation of Symphony.
 
-Status: Phase 5 Workspace Hooks.
+Status: Phase 6 Runtime Observability.
 
 The implementation is intentionally separate from `../elixir/`. The existing Elixir implementation
 can be used as behavioral reference, but this project is developed from `../SPEC.md` as the source
@@ -18,6 +18,7 @@ of truth.
 - Strict prompt rendering for issue fields and retry attempts.
 - Codex app-server runner/client with deterministic fake-protocol tests.
 - Workspace lifecycle hooks with timeout and failure semantics.
+- Codex update routing, token/rate-limit aggregation, and stall detection.
 - Workspace key/path creation basics.
 - OTP orchestrator process with dispatch, claim, running, retry, reconciliation, and runtime
   snapshot support.
@@ -31,7 +32,6 @@ Not implemented yet:
 
 - Dynamic workflow reload.
 - Startup terminal workspace cleanup.
-- Token/rate-limit aggregation.
 - LiveView dashboard.
 
 ## Requirements
@@ -247,6 +247,20 @@ hooks:
 
 `after_create` and `before_run` failures abort the current operation. `after_run` and
 `before_remove` failures are logged and ignored.
+
+## Runtime Observability
+
+The JSON state API includes running-entry Codex metadata when available:
+
+- `session_id`
+- `last_codex_event`
+- `last_codex_timestamp_ms`
+- `codex_input_tokens`
+- `codex_output_tokens`
+- `codex_total_tokens`
+
+Aggregate `codex_totals` are updated from total token-usage events, and `codex_rate_limits` stores
+the latest rate-limit payload seen from Codex.
 
 ## Development Notes
 

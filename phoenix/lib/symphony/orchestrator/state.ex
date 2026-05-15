@@ -42,7 +42,7 @@ defmodule Symphony.Orchestrator.State do
           {issue_id, snapshot_retry_entry(entry)}
         end),
       completed: MapSet.to_list(state.completed),
-      codex_totals: state.codex_totals,
+      codex_totals: live_codex_totals(state),
       codex_rate_limits: state.codex_rate_limits
     }
   end
@@ -54,7 +54,13 @@ defmodule Symphony.Orchestrator.State do
       title: entry.issue.title,
       state: entry.state,
       started_at_ms: entry.started_at_ms,
-      attempt: entry.attempt
+      attempt: entry.attempt,
+      session_id: Map.get(entry, :session_id),
+      last_codex_event: Map.get(entry, :last_codex_event),
+      last_codex_timestamp_ms: Map.get(entry, :last_codex_timestamp_ms),
+      codex_input_tokens: Map.get(entry, :codex_input_tokens, 0),
+      codex_output_tokens: Map.get(entry, :codex_output_tokens, 0),
+      codex_total_tokens: Map.get(entry, :codex_total_tokens, 0)
     }
   end
 
@@ -66,5 +72,16 @@ defmodule Symphony.Orchestrator.State do
       due_at_ms: entry.due_at_ms,
       error: entry.error
     }
+  end
+
+  defp live_codex_totals(state) do
+    active_seconds =
+      state.running
+      |> Map.values()
+      |> Enum.reduce(0, fn entry, acc ->
+        acc + max(div(System.monotonic_time(:millisecond) - entry.started_at_ms, 1_000), 0)
+      end)
+
+    Map.update!(state.codex_totals, :seconds_running, &(&1 + active_seconds))
   end
 end

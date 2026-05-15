@@ -67,3 +67,15 @@
 - Integrated `before_run` and `after_run` into the Codex runner with workspace cwd safety checks.
 - Verified Phase 5 with containerized `mix format`.
 - Verified Phase 5 with containerized `mix test`: 51 tests, 0 failures.
+
+## 2026-05-14
+
+- Merged Phase 5 into `main` and verified merged `main` with `mix test`: 51 tests, 0 failures.
+- Created Phase 6 worktree `/Users/zhaoanka/Develop/symphony/.worktrees/phase-6-observability` on branch `codex/phoenix-observability`.
+- Baseline Phase 6 verification passed with `mix test`: 51 tests, 0 failures.
+- Wrote Phase 6 runtime observability and stall detection design and implementation plan.
+- Implemented orchestrator Codex update handling, event metadata, token totals, and rate-limit storage.
+- Added stall detection during reconciliation with retry scheduling.
+- Extended runtime snapshots with per-run Codex metadata.
+- Verified Phase 6 with containerized `mix format`.
+- Verified Phase 6 with containerized `mix test`: 55 tests, 0 failures.

@@ -19,6 +19,9 @@ defmodule Symphony.Orchestrator do
       max_concurrent_agents: 10,
       max_retry_backoff_ms: 300_000,
       max_concurrent_agents_by_state: %{}
+    },
+    codex: %{
+      stall_timeout_ms: 300_000
     }
   }
 
@@ -106,6 +109,10 @@ defmodule Symphony.Orchestrator do
     {:noreply, handle_retry(state, issue_id)}
   end
 
+  def handle_info({:codex_update, issue_id, message}, %State{} = state) do
+    {:noreply, handle_codex_update(state, issue_id, message)}
+  end
+
   def handle_info(:poll, %State{} = state) do
     state =
       state
@@ -143,8 +150,17 @@ defmodule Symphony.Orchestrator do
 
   defp dispatch_issue(%State{} = state, issue, attempt) do
     runner = state.runner || Symphony.SupportMissingRunner
+    orchestrator = self()
 
-    case runner.start_issue(issue, state.runner_opts) do
+    runner_opts =
+      state.runner_opts
+      |> Keyword.put(:attempt, attempt)
+      |> Keyword.put_new(:settings, state.settings)
+      |> Keyword.put(:on_message, fn message ->
+        send(orchestrator, {:codex_update, issue.id, message})
+      end)
+
+    case runner.start_issue(issue, runner_opts) do
       {:ok, pid} ->
         monitor_ref = Process.monitor(pid)
 
@@ -155,7 +171,16 @@ defmodule Symphony.Orchestrator do
           pid: pid,
           monitor_ref: monitor_ref,
           started_at_ms: now_ms(),
-          attempt: attempt
+          attempt: attempt,
+          session_id: nil,
+          last_codex_event: nil,
+          last_codex_timestamp_ms: nil,
+          codex_input_tokens: 0,
+          codex_output_tokens: 0,
+          codex_total_tokens: 0,
+          last_reported_input_tokens: 0,
+          last_reported_output_tokens: 0,
+          last_reported_total_tokens: 0
         }
 
         %{
@@ -261,20 +286,163 @@ defmodule Symphony.Orchestrator do
   defp reconcile_running(%State{running: running} = state) when map_size(running) == 0, do: state
 
   defp reconcile_running(%State{} = state) do
+    state = reconcile_stalled_runs(state)
     issue_ids = Map.keys(state.running)
 
-    case state.tracker.fetch_issue_states_by_ids(issue_ids) do
-      {:ok, issues} ->
-        issue_by_id = Map.new(issues, &{&1.id, &1})
+    if issue_ids == [] do
+      state
+    else
+      case state.tracker.fetch_issue_states_by_ids(issue_ids) do
+        {:ok, issues} ->
+          issue_by_id = Map.new(issues, &{&1.id, &1})
 
-        Enum.reduce(issue_ids, state, fn issue_id, state_acc ->
-          reconcile_issue_state(state_acc, issue_id, Map.get(issue_by_id, issue_id))
-        end)
+          Enum.reduce(issue_ids, state, fn issue_id, state_acc ->
+            reconcile_issue_state(state_acc, issue_id, Map.get(issue_by_id, issue_id))
+          end)
 
-      {:error, _reason} ->
+        {:error, _reason} ->
+          state
+      end
+    end
+  end
+
+  defp handle_codex_update(%State{} = state, issue_id, message) do
+    case Map.fetch(state.running, issue_id) do
+      {:ok, entry} ->
+        {entry, state} =
+          entry
+          |> put_codex_event(message)
+          |> maybe_put_session_id(message)
+          |> apply_token_usage_delta(state, message)
+
+        state
+        |> put_in([Access.key!(:running), issue_id], entry)
+        |> maybe_put_rate_limits(message)
+
+      :error ->
         state
     end
   end
+
+  defp put_codex_event(entry, message) do
+    %{
+      entry
+      | last_codex_event: message |> Map.get(:event) |> event_to_string(),
+        last_codex_timestamp_ms: now_ms()
+    }
+  end
+
+  defp maybe_put_session_id(entry, message) do
+    payload = Map.get(message, :payload, %{})
+    thread_id = payload["threadId"]
+    turn_id = payload["turnId"] || get_in(payload, ["turn", "id"])
+
+    if is_binary(thread_id) and is_binary(turn_id) do
+      %{entry | session_id: "#{thread_id}-#{turn_id}"}
+    else
+      entry
+    end
+  end
+
+  defp apply_token_usage_delta(entry, state, message) do
+    case extract_total_usage(Map.get(message, :payload, %{})) do
+      nil ->
+        {entry, state}
+
+      usage ->
+        input_delta = max(usage.input_tokens - entry.last_reported_input_tokens, 0)
+        output_delta = max(usage.output_tokens - entry.last_reported_output_tokens, 0)
+        total_delta = max(usage.total_tokens - entry.last_reported_total_tokens, 0)
+
+        entry = %{
+          entry
+          | codex_input_tokens: usage.input_tokens,
+            codex_output_tokens: usage.output_tokens,
+            codex_total_tokens: usage.total_tokens,
+            last_reported_input_tokens: usage.input_tokens,
+            last_reported_output_tokens: usage.output_tokens,
+            last_reported_total_tokens: usage.total_tokens
+        }
+
+        state = %{
+          state
+          | codex_totals: %{
+              input_tokens: state.codex_totals.input_tokens + input_delta,
+              output_tokens: state.codex_totals.output_tokens + output_delta,
+              total_tokens: state.codex_totals.total_tokens + total_delta,
+              seconds_running: state.codex_totals.seconds_running
+            }
+        }
+
+        {entry, state}
+    end
+  end
+
+  defp extract_total_usage(%{"tokenUsage" => %{"total" => total}}) when is_map(total) do
+    %{
+      input_tokens:
+        integer_value(total, ["inputTokens", "input_tokens", :inputTokens, :input_tokens]),
+      output_tokens:
+        integer_value(total, ["outputTokens", "output_tokens", :outputTokens, :output_tokens]),
+      total_tokens:
+        integer_value(total, ["totalTokens", "total_tokens", :totalTokens, :total_tokens])
+    }
+  end
+
+  defp extract_total_usage(_payload), do: nil
+
+  defp maybe_put_rate_limits(state, %{event: :account_rate_limits_updated, payload: payload}) do
+    %{state | codex_rate_limits: Map.get(payload, "rateLimits", payload)}
+  end
+
+  defp maybe_put_rate_limits(state, _message), do: state
+
+  defp reconcile_stalled_runs(%State{} = state) do
+    timeout_ms = get_in(state.settings, [:codex, :stall_timeout_ms]) || 0
+
+    if timeout_ms <= 0 do
+      state
+    else
+      Enum.reduce(state.running, state, fn {issue_id, entry}, state_acc ->
+        last_activity_ms = entry.last_codex_timestamp_ms || entry.started_at_ms
+
+        if now_ms() - last_activity_ms > timeout_ms do
+          stall_running(state_acc, issue_id, entry)
+        else
+          state_acc
+        end
+      end)
+    end
+  end
+
+  defp stall_running(state, issue_id, entry) do
+    Process.demonitor(entry.monitor_ref, [:flush])
+    if Process.alive?(entry.pid), do: Process.exit(entry.pid, :kill)
+    attempt = (entry.attempt || 0) + 1
+
+    state
+    |> remove_running(issue_id)
+    |> schedule_retry(
+      issue_id,
+      attempt,
+      entry.identifier,
+      "codex session stalled",
+      failure_delay_ms(state, attempt)
+    )
+  end
+
+  defp integer_value(map, keys) do
+    Enum.find_value(keys, 0, fn key ->
+      case Map.get(map, key) do
+        value when is_integer(value) -> value
+        _ -> nil
+      end
+    end)
+  end
+
+  defp event_to_string(nil), do: nil
+  defp event_to_string(event) when is_atom(event), do: Atom.to_string(event)
+  defp event_to_string(event), do: to_string(event)
 
   defp reconcile_issue_state(state, issue_id, nil), do: release_running(state, issue_id)
 

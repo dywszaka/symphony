@@ -168,6 +168,112 @@ defmodule Symphony.OrchestratorTest do
     assert snapshot.claimed == []
   end
 
+  test "runner on_message updates running metadata and token totals" do
+    issue = issue("issue-1", "MT-1")
+    Memory.put_issues([issue])
+    server = start_orchestrator!()
+
+    assert :ok = Orchestrator.dispatch_once(server)
+    assert_receive {:fake_runner_started, _pid, ^issue}
+
+    token_payload = %{
+      "threadId" => "thread-1",
+      "turnId" => "turn-1",
+      "tokenUsage" => %{
+        "total" => %{
+          "inputTokens" => 10,
+          "outputTokens" => 5,
+          "totalTokens" => 15
+        }
+      }
+    }
+
+    send(
+      server,
+      {:codex_update, "issue-1", %{event: :thread_token_usage_updated, payload: token_payload}}
+    )
+
+    rate_limits = %{"primary" => %{"usedPercent" => 42}}
+
+    send(
+      server,
+      {:codex_update, "issue-1",
+       %{event: :account_rate_limits_updated, payload: %{"rateLimits" => rate_limits}}}
+    )
+
+    assert_eventually(fn ->
+      {:ok, snapshot} = Orchestrator.snapshot(server)
+      snapshot.running["issue-1"].codex_total_tokens == 15
+    end)
+
+    {:ok, snapshot} = Orchestrator.snapshot(server)
+    running = snapshot.running["issue-1"]
+    assert running.session_id == "thread-1-turn-1"
+    assert running.last_codex_event == "account_rate_limits_updated"
+    assert running.codex_input_tokens == 10
+    assert running.codex_output_tokens == 5
+    assert running.codex_total_tokens == 15
+    assert snapshot.codex_totals.input_tokens == 10
+    assert snapshot.codex_totals.output_tokens == 5
+    assert snapshot.codex_totals.total_tokens == 15
+    assert snapshot.codex_rate_limits == rate_limits
+  end
+
+  test "dispatch injects codex update callback into runner opts" do
+    issue = issue("issue-1", "MT-1")
+    Memory.put_issues([issue])
+    server = start_orchestrator!(runner: __MODULE__.CallbackRunner)
+
+    assert :ok = Orchestrator.dispatch_once(server)
+
+    assert_eventually(fn ->
+      {:ok, snapshot} = Orchestrator.snapshot(server)
+      snapshot.running["issue-1"].last_codex_event == "turn_started"
+    end)
+  end
+
+  test "token totals use deltas from repeated total usage updates" do
+    issue = issue("issue-1", "MT-1")
+    Memory.put_issues([issue])
+    server = start_orchestrator!()
+
+    assert :ok = Orchestrator.dispatch_once(server)
+    assert_receive {:fake_runner_started, _pid, ^issue}
+
+    send_token_update(server, "issue-1", 10, 5, 15)
+    send_token_update(server, "issue-1", 14, 8, 22)
+
+    assert_eventually(fn ->
+      {:ok, snapshot} = Orchestrator.snapshot(server)
+      snapshot.codex_totals.total_tokens == 22
+    end)
+
+    {:ok, snapshot} = Orchestrator.snapshot(server)
+    assert snapshot.codex_totals.input_tokens == 14
+    assert snapshot.codex_totals.output_tokens == 8
+    assert snapshot.codex_totals.total_tokens == 22
+  end
+
+  test "reconciliation stalls inactive codex sessions and schedules retry" do
+    issue = issue("issue-1", "MT-1")
+    Memory.put_issues([issue])
+
+    server =
+      start_orchestrator!(settings: settings(stall_timeout_ms: 1), failure_retry_base_ms: 10)
+
+    assert :ok = Orchestrator.dispatch_once(server)
+    assert_receive {:fake_runner_started, pid, ^issue}
+    Process.sleep(5)
+
+    monitor_ref = Process.monitor(pid)
+    assert :ok = Orchestrator.reconcile_once(server)
+    assert_receive {:DOWN, ^monitor_ref, :process, ^pid, _reason}
+
+    retry = retry_entry(server, "issue-1")
+    assert retry.attempt == 1
+    assert retry.error == "codex session stalled"
+  end
+
   defp start_orchestrator!(opts \\ []) do
     name = :"orchestrator_#{System.unique_integer([:positive])}"
 
@@ -208,8 +314,32 @@ defmodule Symphony.OrchestratorTest do
             max_concurrent_agents_by_state: %{}
           },
           Map.new(agent_overrides)
-        )
+        ),
+      codex: %{
+        stall_timeout_ms: Keyword.get(overrides, :stall_timeout_ms, 300_000)
+      }
     }
+  end
+
+  defp send_token_update(server, issue_id, input_tokens, output_tokens, total_tokens) do
+    send(server, {
+      :codex_update,
+      issue_id,
+      %{
+        event: :thread_token_usage_updated,
+        payload: %{
+          "threadId" => "thread-1",
+          "turnId" => "turn-1",
+          "tokenUsage" => %{
+            "total" => %{
+              "inputTokens" => input_tokens,
+              "outputTokens" => output_tokens,
+              "totalTokens" => total_tokens
+            }
+          }
+        }
+      }
+    })
   end
 
   defp retry_entry(server, issue_id) do
@@ -244,5 +374,29 @@ defmodule Symphony.OrchestratorTest do
         attrs
       )
     )
+  end
+
+  defmodule CallbackRunner do
+    @behaviour Symphony.Runner.Behaviour
+
+    @impl true
+    def start_issue(issue, opts) do
+      on_message = Keyword.fetch!(opts, :on_message)
+
+      pid =
+        spawn(fn ->
+          on_message.(%{
+            event: :turn_started,
+            payload: %{"threadId" => "thread-callback", "turnId" => "turn-callback"}
+          })
+
+          receive do
+            :stop -> :ok
+          end
+        end)
+
+      send(Keyword.fetch!(opts, :recipient), {:fake_runner_started, pid, issue})
+      {:ok, pid}
+    end
   end
 end
