@@ -232,6 +232,29 @@ defmodule Symphony.OrchestratorTest do
     end)
   end
 
+  test "reconfigure updates future scheduling settings and runner prompt template" do
+    Memory.put_issues([
+      issue("issue-1", "MT-1", state: "Todo"),
+      issue("issue-2", "MT-2", state: "Todo")
+    ])
+
+    server = start_orchestrator!(settings: settings(max_concurrent_agents: 1))
+
+    updated_settings = settings(max_concurrent_agents: 2, poll_interval_ms: 75)
+
+    assert :ok =
+             Orchestrator.reconfigure(server, updated_settings, "Prompt {{ issue.identifier }}")
+
+    assert :ok = Orchestrator.dispatch_once(server)
+
+    assert_receive {:fake_runner_started, _pid1, %Issue{id: "issue-1"}}
+    assert_receive {:fake_runner_started, _pid2, %Issue{id: "issue-2"}}
+
+    {:ok, snapshot} = Orchestrator.snapshot(server)
+    assert snapshot.max_concurrent_agents == 2
+    assert snapshot.poll_interval_ms == 75
+  end
+
   test "token totals use deltas from repeated total usage updates" do
     issue = issue("issue-1", "MT-1")
     Memory.put_issues([issue])

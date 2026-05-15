@@ -2,7 +2,7 @@
 
 This directory contains the new Elixir/OTP + Phoenix implementation of Symphony.
 
-Status: Phase 7 Startup Cleanup and Local E2E.
+Status: Phase 8 Dynamic Workflow Reload.
 
 The implementation is intentionally separate from `../elixir/`. The existing Elixir implementation
 can be used as behavioral reference, but this project is developed from `../SPEC.md` as the source
@@ -21,6 +21,7 @@ of truth.
 - Codex update routing, token/rate-limit aggregation, and stall detection.
 - Startup cleanup removes stale workspaces for terminal tracker issues.
 - Deterministic local E2E orchestration coverage.
+- Dynamic workflow reload watcher with last-known-good behavior for invalid reloads.
 - Workspace key/path creation basics.
 - OTP orchestrator process with dispatch, claim, running, retry, reconciliation, and runtime
   snapshot support.
@@ -32,8 +33,8 @@ of truth.
 
 Not implemented yet:
 
-- Dynamic workflow reload.
 - LiveView dashboard.
+- Optional `linear_graphql` dynamic tool extension.
 
 ## Requirements
 
@@ -267,6 +268,22 @@ the latest rate-limit payload seen from Codex.
 
 When the orchestrator starts with workspace settings, it queries terminal tracker states and removes
 matching issue workspaces. Cleanup errors are treated as non-fatal startup warnings.
+
+## Dynamic Workflow Reload
+
+`Symphony.Workflow.Watcher` can watch a `WORKFLOW.md` path and apply valid changes to a running
+orchestrator:
+
+```elixir
+{:ok, watcher} =
+  Symphony.Workflow.Watcher.start_link(
+    workflow_path: "/path/to/WORKFLOW.md",
+    orchestrator: Symphony.Orchestrator
+  )
+```
+
+Invalid reloads keep the last-known-good settings and prompt template. Inspect watcher state with
+`Symphony.Workflow.Watcher.snapshot(watcher)`.
 
 ## Development Notes
 

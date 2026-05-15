@@ -22,6 +22,7 @@ Goal: Build a new Symphony implementation from `SPEC.md` using Elixir/OTP + Phoe
 | 5. Workspace hooks and safety | complete | Path invariants, hook execution/timeout/failure semantics, terminal cleanup | Workspace tests pass, git commit created |
 | 6. Observability dashboard | complete | Structured state snapshot, Phoenix JSON API, optional LiveView dashboard, token/rate-limit accounting | API/UI tests pass, git commit created |
 | 7. End-to-end validation | complete | Memory tracker E2E, optional Linear/Codex live test harness, docs | Full local quality gate passes, git commit created |
+| 8. Dynamic workflow reload | complete | Watch WORKFLOW.md changes, reload settings and prompt, preserve last-known-good on invalid reload | Reload tests pass, git commit created |
 
 ## Errors Encountered
 

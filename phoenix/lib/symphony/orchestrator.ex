@@ -54,6 +54,12 @@ defmodule Symphony.Orchestrator do
     GenServer.call(server, {:retry_now, issue_id})
   end
 
+  @spec reconfigure(GenServer.server(), map(), String.t()) :: :ok
+  def reconfigure(server \\ __MODULE__, settings, prompt_template)
+      when is_map(settings) and is_binary(prompt_template) do
+    GenServer.call(server, {:reconfigure, settings, prompt_template})
+  end
+
   @impl true
   def init(opts) do
     settings = Keyword.get(opts, :settings, @default_settings)
@@ -89,6 +95,11 @@ defmodule Symphony.Orchestrator do
 
   def handle_call({:retry_now, issue_id}, _from, %State{} = state) do
     {:reply, :ok, handle_retry(state, issue_id)}
+  end
+
+  def handle_call({:reconfigure, settings, prompt_template}, _from, %State{} = state) do
+    state = apply_reconfigure(state, settings, prompt_template)
+    {:reply, :ok, state}
   end
 
   @impl true
@@ -135,6 +146,16 @@ defmodule Symphony.Orchestrator do
       {:error, _reason} ->
         state
     end
+  end
+
+  defp apply_reconfigure(%State{} = state, settings, prompt_template) do
+    %{
+      state
+      | settings: settings,
+        max_concurrent_agents: settings.agent.max_concurrent_agents,
+        poll_interval_ms: settings.polling.interval_ms,
+        runner_opts: Keyword.put(state.runner_opts, :prompt_template, prompt_template)
+    }
   end
 
   defp maybe_dispatch_issue(%State{} = state, issue, attempt) do
