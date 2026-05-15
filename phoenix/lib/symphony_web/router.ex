@@ -5,6 +5,16 @@ defmodule SymphonyWeb.Router do
     plug(:accepts, ["json"])
   end
 
+  pipeline :browser do
+    plug(:accepts, ["html"])
+  end
+
+  scope "/", SymphonyWeb do
+    pipe_through(:browser)
+
+    get("/", DashboardController, :show)
+  end
+
   scope "/", SymphonyWeb do
     pipe_through(:api)
 
