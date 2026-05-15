@@ -2,7 +2,7 @@
 
 This directory contains the new Elixir/OTP + Phoenix implementation of Symphony.
 
-Status: Phase 6 Runtime Observability.
+Status: Phase 7 Startup Cleanup and Local E2E.
 
 The implementation is intentionally separate from `../elixir/`. The existing Elixir implementation
 can be used as behavioral reference, but this project is developed from `../SPEC.md` as the source
@@ -19,6 +19,8 @@ of truth.
 - Codex app-server runner/client with deterministic fake-protocol tests.
 - Workspace lifecycle hooks with timeout and failure semantics.
 - Codex update routing, token/rate-limit aggregation, and stall detection.
+- Startup cleanup removes stale workspaces for terminal tracker issues.
+- Deterministic local E2E orchestration coverage.
 - Workspace key/path creation basics.
 - OTP orchestrator process with dispatch, claim, running, retry, reconciliation, and runtime
   snapshot support.
@@ -31,7 +33,6 @@ of truth.
 Not implemented yet:
 
 - Dynamic workflow reload.
-- Startup terminal workspace cleanup.
 - LiveView dashboard.
 
 ## Requirements
@@ -261,6 +262,11 @@ The JSON state API includes running-entry Codex metadata when available:
 
 Aggregate `codex_totals` are updated from total token-usage events, and `codex_rate_limits` stores
 the latest rate-limit payload seen from Codex.
+
+## Startup Cleanup
+
+When the orchestrator starts with workspace settings, it queries terminal tracker states and removes
+matching issue workspaces. Cleanup errors are treated as non-fatal startup warnings.
 
 ## Development Notes
 

@@ -6,6 +6,7 @@ defmodule Symphony.Orchestrator do
   use GenServer
 
   alias Symphony.Orchestrator.{Scheduling, State}
+  alias Symphony.Workspace
 
   @default_settings %{
     tracker: %{
@@ -69,6 +70,7 @@ defmodule Symphony.Orchestrator do
       failure_retry_base_ms: Keyword.get(opts, :failure_retry_base_ms, 10_000)
     }
 
+    startup_terminal_workspace_cleanup(state)
     {:ok, maybe_schedule_poll(state, 0)}
   end
 
@@ -502,5 +504,20 @@ defmodule Symphony.Orchestrator do
   defp maybe_schedule_poll(%State{auto_poll: true} = state, delay_ms) do
     timer_ref = Process.send_after(self(), :poll, delay_ms)
     %{state | poll_timer_ref: timer_ref}
+  end
+
+  defp startup_terminal_workspace_cleanup(%State{} = state) do
+    with %{workspace: %{root: root}, hooks: hooks} <- state.settings,
+         {:ok, issues} <- state.tracker.fetch_issues_by_states(terminal_states(state)) do
+      Enum.each(issues, fn issue ->
+        if is_binary(issue.identifier) do
+          Workspace.remove_for_issue(issue.identifier, root, hooks)
+        end
+      end)
+    else
+      _reason -> :ok
+    end
+
+    :ok
   end
 end
