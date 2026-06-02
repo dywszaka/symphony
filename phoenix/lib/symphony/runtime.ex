@@ -12,12 +12,13 @@ defmodule Symphony.Runtime do
 
   @app :symphony
   @linear_settings_key :linear_settings
+  @tasktracker_settings_key :tasktracker_settings
 
   @spec orchestrator_opts(map()) :: {:ok, keyword()} | {:error, term()}
   def orchestrator_opts(env \\ System.get_env()) when is_map(env) do
     case workflow_path(env) do
       nil ->
-        Application.delete_env(@app, @linear_settings_key)
+        clear_tracker_settings()
         {:ok, []}
 
       path ->
@@ -61,13 +62,25 @@ defmodule Symphony.Runtime do
 
   defp tracker_module("linear"), do: {:ok, Symphony.Linear.Adapter}
   defp tracker_module("memory"), do: {:ok, Symphony.Tracker.Memory}
+  defp tracker_module("tasktracker"), do: {:ok, Symphony.TaskTracker.Adapter}
   defp tracker_module(kind), do: {:error, {:unsupported_tracker_kind, kind}}
 
   defp configure_tracker(%Settings{tracker: %{kind: "linear"}} = settings) do
     Application.put_env(@app, @linear_settings_key, settings)
+    Application.delete_env(@app, @tasktracker_settings_key)
+  end
+
+  defp configure_tracker(%Settings{tracker: %{kind: "tasktracker"}} = settings) do
+    Application.delete_env(@app, @linear_settings_key)
+    Application.put_env(@app, @tasktracker_settings_key, settings)
   end
 
   defp configure_tracker(_settings) do
+    clear_tracker_settings()
+  end
+
+  defp clear_tracker_settings do
     Application.delete_env(@app, @linear_settings_key)
+    Application.delete_env(@app, @tasktracker_settings_key)
   end
 end

@@ -15,6 +15,8 @@ of truth.
 - In-memory tracker for deterministic local tests.
 - Linear GraphQL tracker adapter with pagination, state refresh, blocker extraction, and
   deterministic mocked tests.
+- TaskTracker REST adapter with project/state filtering, state refresh, and deterministic mocked
+  tests.
 - Strict prompt rendering for issue fields and retry attempts.
 - Codex app-server runner/client with deterministic fake-protocol tests.
 - Workspace lifecycle hooks with timeout and failure semantics.
@@ -31,7 +33,8 @@ of truth.
   - `GET /health`
   - `GET /api/v1/state`
   - `POST /api/v1/refresh`
-- Runtime startup from `WORKFLOW_PATH` with Linear tracker, Codex runner, and automatic polling.
+- Runtime startup from `WORKFLOW_PATH` with Linear or TaskTracker, Codex runner, and automatic
+  polling.
 
 Not implemented yet:
 
@@ -292,6 +295,26 @@ tracker:
   endpoint: https://api.linear.app/graphql
   project_slug: my-project
   api_key: ${LINEAR_API_KEY}
+  active_states:
+    - Todo
+    - In Progress
+  terminal_states:
+    - Done
+    - Canceled
+```
+
+## TaskTracker Configuration
+
+TaskTracker settings are parsed from workflow front matter. The adapter uses `TASKTRACKER_TOKEN`
+when `tracker.api_key` is omitted. If `tracker.endpoint` is omitted for `kind: tasktracker`, it
+defaults to `http://localhost:4001/api/v1`.
+
+```yaml
+tracker:
+  kind: tasktracker
+  endpoint: http://localhost:4001/api/v1
+  project_key: platform
+  api_key: $TASKTRACKER_TOKEN
   active_states:
     - Todo
     - In Progress

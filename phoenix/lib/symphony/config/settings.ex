@@ -37,7 +37,7 @@ defmodule Symphony.Config.Settings do
       is_nil(settings.tracker.kind) ->
         {:error, :missing_tracker_kind}
 
-      settings.tracker.kind not in ["linear", "memory"] ->
+      settings.tracker.kind not in ["linear", "memory", "tasktracker"] ->
         {:error, {:unsupported_tracker_kind, settings.tracker.kind}}
 
       settings.tracker.kind == "linear" and blank?(settings.tracker.api_key) ->
@@ -45,6 +45,12 @@ defmodule Symphony.Config.Settings do
 
       settings.tracker.kind == "linear" and blank?(settings.tracker.project_slug) ->
         {:error, :missing_linear_project_slug}
+
+      settings.tracker.kind == "tasktracker" and blank?(settings.tracker.api_key) ->
+        {:error, :missing_tasktracker_api_token}
+
+      settings.tracker.kind == "tasktracker" and blank?(settings.tracker.project_key) ->
+        {:error, :missing_tasktracker_project_key}
 
       blank?(settings.codex.command) ->
         {:error, {:invalid_workflow_config, "codex.command can't be blank"}}
@@ -55,11 +61,14 @@ defmodule Symphony.Config.Settings do
   end
 
   defp tracker_settings(raw) do
+    kind = string_or_nil(raw["kind"])
+
     %{
-      kind: string_or_nil(raw["kind"]),
-      endpoint: string_or_nil(raw["endpoint"]) || "https://api.linear.app/graphql",
-      api_key: resolve_secret(raw["api_key"], System.get_env("LINEAR_API_KEY")),
+      kind: kind,
+      endpoint: tracker_endpoint(kind, raw["endpoint"]),
+      api_key: tracker_api_key(kind, raw["api_key"]),
       project_slug: string_or_nil(raw["project_slug"]),
+      project_key: string_or_nil(raw["project_key"]),
       active_states: string_list(raw["active_states"], ["Todo", "In Progress"]),
       terminal_states:
         string_list(raw["terminal_states"], [
@@ -71,6 +80,18 @@ defmodule Symphony.Config.Settings do
         ])
     }
   end
+
+  defp tracker_endpoint("tasktracker", value),
+    do: string_or_nil(value) || "http://localhost:4001/api/v1"
+
+  defp tracker_endpoint(_kind, value),
+    do: string_or_nil(value) || "https://api.linear.app/graphql"
+
+  defp tracker_api_key("tasktracker", value),
+    do: resolve_secret(value, System.get_env("TASKTRACKER_TOKEN"))
+
+  defp tracker_api_key(_kind, value),
+    do: resolve_secret(value, System.get_env("LINEAR_API_KEY"))
 
   defp polling_settings(raw),
     do: %{interval_ms: positive_integer(raw["interval_ms"], 30_000, "polling.interval_ms")}

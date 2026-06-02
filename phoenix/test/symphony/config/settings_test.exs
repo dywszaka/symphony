@@ -81,11 +81,64 @@ defmodule Symphony.Config.SettingsTest do
     assert :ok = Settings.validate_dispatch(settings)
   end
 
+  test "validates TaskTracker dispatch requirements and defaults" do
+    token_name = "SYMPHONY_TASKTRACKER_TOKEN_#{System.unique_integer([:positive])}"
+    System.put_env(token_name, "task-token")
+
+    on_exit(fn -> System.delete_env(token_name) end)
+
+    workflow = %{
+      config: %{
+        "tracker" => %{
+          "kind" => "tasktracker",
+          "api_key" => "$#{token_name}",
+          "project_key" => "platform"
+        }
+      },
+      prompt_template: ""
+    }
+
+    assert {:ok, settings} = Settings.from_workflow(workflow, temp_workflow_path!())
+    assert settings.tracker.endpoint == "http://localhost:4001/api/v1"
+    assert settings.tracker.api_key == "task-token"
+    assert settings.tracker.project_key == "platform"
+    assert :ok = Settings.validate_dispatch(settings)
+  end
+
   test "validates Linear dispatch requirements" do
     workflow = %{config: %{"tracker" => %{"kind" => "linear"}}, prompt_template: ""}
 
     assert {:ok, settings} = Settings.from_workflow(workflow, temp_workflow_path!())
     assert {:error, :missing_linear_api_token} = Settings.validate_dispatch(settings)
+  end
+
+  test "validates TaskTracker missing token and project key" do
+    original_token = System.get_env("TASKTRACKER_TOKEN")
+    System.delete_env("TASKTRACKER_TOKEN")
+
+    on_exit(fn ->
+      if is_nil(original_token) do
+        System.delete_env("TASKTRACKER_TOKEN")
+      else
+        System.put_env("TASKTRACKER_TOKEN", original_token)
+      end
+    end)
+
+    missing_token = %{
+      config: %{"tracker" => %{"kind" => "tasktracker", "project_key" => "platform"}},
+      prompt_template: ""
+    }
+
+    assert {:ok, settings} = Settings.from_workflow(missing_token, temp_workflow_path!())
+    assert {:error, :missing_tasktracker_api_token} = Settings.validate_dispatch(settings)
+
+    missing_project = %{
+      config: %{"tracker" => %{"kind" => "tasktracker", "api_key" => "task-token"}},
+      prompt_template: ""
+    }
+
+    assert {:ok, settings} = Settings.from_workflow(missing_project, temp_workflow_path!())
+    assert {:error, :missing_tasktracker_project_key} = Settings.validate_dispatch(settings)
   end
 
   defp temp_workflow_path! do

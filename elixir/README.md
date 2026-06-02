@@ -13,7 +13,7 @@ This directory contains the current Elixir/OTP implementation of Symphony, based
 
 ## How it works
 
-1. Polls Linear for candidate work
+1. Polls a tracker for candidate work. Linear and TaskTracker are supported.
 2. Creates a workspace per issue
 3. Launches Codex in [App Server mode](https://developers.openai.com/codex/app-server/) inside the
    workspace
@@ -35,8 +35,8 @@ Linear issue can become a dispatch candidate again after restart.
 
 1. Make sure your codebase is set up to work well with agents: see
    [Harness engineering](https://openai.com/index/harness-engineering/).
-2. Get a new personal token in Linear via Settings → Security & access → Personal API keys, and
-   set it as the `LINEAR_API_KEY` environment variable.
+2. Configure a tracker token. For Linear, set `LINEAR_API_KEY`. For TaskTracker, set
+   `TASKTRACKER_TOKEN`.
 3. Copy this directory's `WORKFLOW.md` to your repo.
 4. Optionally copy the `commit`, `push`, `pull`, `land`, and `linear` skills to your repo.
    - The `linear` skill expects Symphony's `linear_graphql` app-server tool for raw Linear GraphQL
@@ -112,6 +112,35 @@ You are working on a Linear issue {{ issue.identifier }}.
 Title: {{ issue.title }} Body: {{ issue.description }}
 ```
 
+TaskTracker replacement example:
+
+```md
+---
+tracker:
+  kind: tasktracker
+  endpoint: http://127.0.0.1:4001/api/v1
+  api_key: $TASKTRACKER_TOKEN
+  project_key: platform
+  active_states:
+    - Todo
+    - In Progress
+  terminal_states:
+    - Done
+    - Cancelled
+workspace:
+  root: ~/code/workspaces
+agent:
+  max_concurrent_agents: 3
+codex:
+  command: codex app-server
+---
+
+You are working on task {{ issue.identifier }}.
+
+Title: {{ issue.title }}
+Description: {{ issue.description }}
+```
+
 Notes:
 
 - If a value is missing, defaults are used.
@@ -132,7 +161,9 @@ Notes:
   `git clone ... .` there, along with any other setup commands you need.
 - If a hook needs `mise exec` inside a freshly cloned workspace, trust the repo config and fetch
   the project dependencies in `hooks.after_create` before invoking `mise` later from other hooks.
-- `tracker.api_key` reads from `LINEAR_API_KEY` when unset or when value is `$LINEAR_API_KEY`.
+- `tracker.api_key` reads from `LINEAR_API_KEY` for Linear and `TASKTRACKER_TOKEN` for
+  TaskTracker when unset or when the matching `$VAR` value is used.
+- `tracker.project_key` is required for `tracker.kind: tasktracker`.
 - For path values, `~` is expanded to the home directory.
 - For env-backed path values, use `$VAR`. `workspace.root` resolves `$VAR` before path handling,
   while `codex.command` stays a shell command string and any `$VAR` expansion there happens in the

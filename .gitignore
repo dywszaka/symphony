@@ -1,4 +1,7 @@
 .worktrees/
 .docker_mix/
+.symphony-tasktracker-runtime/
+__pycache__/
+*.pyc
 phoenix/_build/
 phoenix/deps/

@@ -47,6 +47,12 @@ defmodule SymphonyElixir.Tracker.Memory do
     :ok
   end
 
+  @spec update_workpad(String.t(), String.t()) :: :ok | {:error, term()}
+  def update_workpad(issue_id, body) do
+    send_event({:memory_tracker_workpad_update, issue_id, body})
+    :ok
+  end
+
   defp configured_issues do
     Application.get_env(:symphony_elixir, :memory_tracker_issues, [])
   end

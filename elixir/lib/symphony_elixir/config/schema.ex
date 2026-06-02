@@ -49,6 +49,7 @@ defmodule SymphonyElixir.Config.Schema do
       field(:endpoint, :string, default: "https://api.linear.app/graphql")
       field(:api_key, :string)
       field(:project_slug, :string)
+      field(:project_key, :string)
       field(:assignee, :string)
       field(:active_states, {:array, :string}, default: ["Todo", "In Progress"])
       field(:terminal_states, {:array, :string}, default: ["Closed", "Cancelled", "Canceled", "Duplicate", "Done"])
@@ -59,7 +60,16 @@ defmodule SymphonyElixir.Config.Schema do
       schema
       |> cast(
         attrs,
-        [:kind, :endpoint, :api_key, :project_slug, :assignee, :active_states, :terminal_states],
+        [
+          :kind,
+          :endpoint,
+          :api_key,
+          :project_slug,
+          :project_key,
+          :assignee,
+          :active_states,
+          :terminal_states
+        ],
         empty_values: []
       )
     end
@@ -368,7 +378,8 @@ defmodule SymphonyElixir.Config.Schema do
   defp finalize_settings(settings) do
     tracker = %{
       settings.tracker
-      | api_key: resolve_secret_setting(settings.tracker.api_key, System.get_env("LINEAR_API_KEY")),
+      | endpoint: default_tracker_endpoint(settings.tracker.kind, settings.tracker.endpoint),
+        api_key: resolve_tracker_api_key(settings.tracker.kind, settings.tracker.api_key),
         assignee: resolve_secret_setting(settings.tracker.assignee, System.get_env("LINEAR_ASSIGNEE"))
     }
 
@@ -400,6 +411,17 @@ defmodule SymphonyElixir.Config.Schema do
 
   defp normalize_key(value) when is_atom(value), do: Atom.to_string(value)
   defp normalize_key(value), do: to_string(value)
+
+  defp default_tracker_endpoint("tasktracker", "https://api.linear.app/graphql"),
+    do: "http://localhost:4001/api/v1"
+
+  defp default_tracker_endpoint(_kind, endpoint), do: endpoint
+
+  defp resolve_tracker_api_key("tasktracker", value),
+    do: resolve_secret_setting(value, System.get_env("TASKTRACKER_TOKEN"))
+
+  defp resolve_tracker_api_key(_kind, value),
+    do: resolve_secret_setting(value, System.get_env("LINEAR_API_KEY"))
 
   defp drop_nil_values(value) when is_map(value) do
     Enum.reduce(value, %{}, fn {key, nested}, acc ->

@@ -73,6 +73,9 @@ defmodule SymphonyElixir.Linear.Adapter do
     end
   end
 
+  @spec update_workpad(String.t(), String.t()) :: {:error, :unsupported_tracker_workpad}
+  def update_workpad(_issue_id, _body), do: {:error, :unsupported_tracker_workpad}
+
   defp client_module do
     Application.get_env(:symphony_elixir, :linear_client_module, Client)
   end

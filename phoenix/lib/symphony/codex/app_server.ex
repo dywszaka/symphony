@@ -3,6 +3,7 @@ defmodule Symphony.Codex.AppServer do
   Minimal Codex app-server JSON-RPC client over stdio.
   """
 
+  alias Symphony.Codex.DynamicTool
   alias Symphony.Tracker.Issue
 
   defstruct [:port, :thread_id, :workspace, :settings]
@@ -36,9 +37,10 @@ defmodule Symphony.Codex.AppServer do
   def run_turn(%__MODULE__{} = session, prompt, %Issue{} = _issue, opts \\ [])
       when is_binary(prompt) do
     on_message = Keyword.get(opts, :on_message, fn _message -> :ok end)
+    tool_executor = Keyword.get(opts, :tool_executor, &DynamicTool.execute/2)
 
     with {:ok, turn_id} <- start_turn(session, prompt, on_message),
-         {:ok, result} <- await_turn_completion(session, turn_id, on_message) do
+         {:ok, result} <- await_turn_completion(session, turn_id, on_message, tool_executor) do
       {:ok, result}
     end
   end
@@ -92,6 +94,7 @@ defmodule Symphony.Codex.AppServer do
         "cwd" => workspace,
         "approvalPolicy" => settings.codex.approval_policy,
         "sandbox" => settings.codex.thread_sandbox,
+        "dynamicTools" => DynamicTool.tool_specs(),
         "ephemeral" => true,
         "serviceName" => "symphony",
         "sessionStartSource" => "local"
@@ -134,12 +137,18 @@ defmodule Symphony.Codex.AppServer do
     end
   end
 
-  defp await_turn_completion(%__MODULE__{} = session, turn_id, on_message) do
+  defp await_turn_completion(%__MODULE__{} = session, turn_id, on_message, tool_executor) do
     deadline_ms = System.monotonic_time(:millisecond) + session.settings.codex.turn_timeout_ms
-    do_await_turn_completion(session, turn_id, on_message, deadline_ms)
+    do_await_turn_completion(session, turn_id, on_message, tool_executor, deadline_ms)
   end
 
-  defp do_await_turn_completion(%__MODULE__{} = session, turn_id, on_message, deadline_ms) do
+  defp do_await_turn_completion(
+         %__MODULE__{} = session,
+         turn_id,
+         on_message,
+         tool_executor,
+         deadline_ms
+       ) do
     case read_loop(session.port, remaining_timeout_ms(deadline_ms), on_message) do
       {:notification, "turn/completed", params} ->
         {:ok, %{thread_id: session.thread_id, turn_id: turn_id, payload: params}}
@@ -148,12 +157,15 @@ defmodule Symphony.Codex.AppServer do
         {:error, {method_error(method), params}}
 
       {:notification, _method, _params} ->
-        do_await_turn_completion(session, turn_id, on_message, deadline_ms)
+        do_await_turn_completion(session, turn_id, on_message, tool_executor, deadline_ms)
 
       {:server_request, request} ->
-        case handle_server_request(session.port, request) do
-          :ok -> do_await_turn_completion(session, turn_id, on_message, deadline_ms)
-          {:error, reason} -> {:error, reason}
+        case handle_server_request(session.port, request, tool_executor) do
+          :ok ->
+            do_await_turn_completion(session, turn_id, on_message, tool_executor, deadline_ms)
+
+          {:error, reason} ->
+            {:error, reason}
         end
 
       {:error, :codex_read_timeout} ->
@@ -227,7 +239,13 @@ defmodule Symphony.Codex.AppServer do
 
   defp decode_line(line, on_message), do: decode_line(to_string(line), on_message)
 
-  defp handle_server_request(port, %{"id" => id, "method" => method, "params" => params}) do
+  defp handle_server_request(port, request, tool_executor \\ &DynamicTool.execute/2)
+
+  defp handle_server_request(
+         port,
+         %{"id" => id, "method" => method, "params" => params},
+         tool_executor
+       ) do
     case method do
       "item/commandExecution/requestApproval" ->
         write_json(port, %{"id" => id, "result" => %{"decision" => "acceptForSession"}})
@@ -236,14 +254,14 @@ defmodule Symphony.Codex.AppServer do
         write_json(port, %{"id" => id, "result" => %{"decision" => "acceptForSession"}})
 
       "item/tool/call" ->
+        result =
+          params
+          |> tool_call_name()
+          |> tool_executor.(tool_call_arguments(params))
+
         write_json(port, %{
           "id" => id,
-          "result" => %{
-            "success" => false,
-            "contentItems" => [
-              %{"type" => "inputText", "text" => "Unsupported Symphony client-side tool"}
-            ]
-          }
+          "result" => normalize_dynamic_tool_result(result)
         })
 
       "item/tool/requestUserInput" ->
@@ -260,8 +278,39 @@ defmodule Symphony.Codex.AppServer do
     end
   end
 
-  defp handle_server_request(_port, request),
+  defp handle_server_request(_port, request, _tool_executor),
     do: {:error, {:codex_unknown_server_request, request}}
+
+  defp tool_call_name(params), do: Map.get(params, "name") || Map.get(params, "tool")
+  defp tool_call_arguments(params), do: Map.get(params, "arguments", %{})
+
+  defp normalize_dynamic_tool_result(%{"success" => success} = result) when is_boolean(success) do
+    output =
+      case Map.get(result, "output") do
+        existing_output when is_binary(existing_output) -> existing_output
+        _ -> Jason.encode!(result)
+      end
+
+    content_items =
+      case Map.get(result, "contentItems") do
+        existing_items when is_list(existing_items) -> existing_items
+        _ -> [%{"type" => "inputText", "text" => output}]
+      end
+
+    result
+    |> Map.put("output", output)
+    |> Map.put("contentItems", content_items)
+  end
+
+  defp normalize_dynamic_tool_result(result) do
+    output = Jason.encode!(%{"result" => result})
+
+    %{
+      "success" => true,
+      "output" => output,
+      "contentItems" => [%{"type" => "inputText", "text" => output}]
+    }
+  end
 
   defp emit_notification(nil, _method, _params, _payload), do: :ok
 

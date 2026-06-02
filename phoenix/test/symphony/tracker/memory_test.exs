@@ -5,6 +5,7 @@ defmodule Symphony.Tracker.MemoryTest do
 
   setup do
     Memory.put_issues([])
+    on_exit(fn -> Memory.put_issues([]) end)
     :ok
   end
 
